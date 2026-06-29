@@ -409,22 +409,31 @@ def verify_init_data(init_data: str) -> Optional[dict]:
 # FASTAPI BACKEND (Endpoints & Setup)
 # ==========================================
 
+from aiogram.types import Update
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Initialize DB
     init_db()
     
-    # Start bot polling in background
-    polling_task = asyncio.create_task(dp.start_polling(bot))
-    logger.info("Bot polling started.")
-    
+    # Set Webhook on startup
+    try:
+        webhook_url = f"{WEBAPP_URL}/webhook"
+        await bot.set_webhook(url=webhook_url, drop_pending_updates=True)
+        logger.info(f"Webhook successfully set to: {webhook_url}")
+    except Exception as e:
+        logger.error(f"Failed to set webhook on startup: {e}")
+        
     yield
     
     # Shutdown
-    await dp.stop_polling()
+    try:
+        await bot.delete_webhook()
+        logger.info("Webhook deleted.")
+    except Exception as e:
+        logger.error(f"Failed to delete webhook on shutdown: {e}")
     await bot.session.close()
-    polling_task.cancel()
-    logger.info("Bot and server shutdown complete.")
+    logger.info("Bot session closed.")
 
 app = FastAPI(lifespan=lifespan)
 
@@ -436,6 +445,27 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Webhook Endpoints
+@app.post("/webhook")
+async def telegram_webhook(request: Request):
+    try:
+        update_dict = await request.json()
+        update = Update.model_validate(update_dict, context={"bot": bot})
+        await dp.feed_update(bot, update)
+    except Exception as e:
+        logger.error(f"Error processing webhook update: {e}")
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+    return {"ok": True}
+
+@app.get("/set_webhook")
+async def set_webhook_manually():
+    try:
+        webhook_url = f"{WEBAPP_URL}/webhook"
+        await bot.set_webhook(url=webhook_url, drop_pending_updates=True)
+        return {"status": "success", "message": f"Webhook successfully set to {webhook_url}"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 # Request Models
 class DepositRequest(BaseModel):
