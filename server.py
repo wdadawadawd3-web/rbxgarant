@@ -24,17 +24,21 @@ from aiogram.types import (
     ReplyKeyboardMarkup, 
     KeyboardButton, 
     WebAppInfo,
-    LabeledPrice
+    LabeledPrice,
+    Update
 )
 from aiogram.filters import Command
 
+# Переходник для асинхронного FastAPI на синхронном PythonAnywhere
+from a2wsgi import ASGIMiddleware
+
 # ==========================================
-# CONFIGURATION (Change these values)
+# CONFIGURATION
 # ==========================================
 BOT_TOKEN = "8502294865:AAF7HAQ4B1GNG_-_15RJm0BCMBFvrEb476o"
-WEBAPP_URL = "https://your-ngrok-url.ngrok-free.app"  # Must be HTTPS (e.g. Ngrok)
+WEBAPP_URL = "https://robopo1.pythonanywhere.com"  # ТВОЙ АДРЕС НА PYTHONANYWHERE
 PORT = 8000
-DB_PATH = "garant.db"
+DB_PATH = os.path.join(os.path.dirname(__file__), "garant.db")
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -50,7 +54,6 @@ dp = Dispatcher()
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    # Users table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY,
@@ -59,7 +62,6 @@ def init_db():
         balance INTEGER DEFAULT 0
     )
     """)
-    # Deals table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS deals (
         id TEXT PRIMARY KEY,
@@ -104,7 +106,7 @@ def get_user_by_id(user_id: int):
 def get_user_by_username(username: str):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    clean_username = username.lower().replace("@", "")
+    clean_username = username.lower().replace("@", "").strip()
     cursor.execute("SELECT id, username, first_name, balance FROM users WHERE username = ?", (clean_username,))
     row = cursor.fetchone()
     conn.close()
@@ -180,7 +182,8 @@ def get_user_deals_list(user_id: int):
             "description": r[5],
             "status": r[6],
             "buyer_username": r[7],
-            "seller_username_resolved": r[8]
+            "seller_username_resolved": r[8],
+            "status_text": "Активна" if r[6] == "active" else "Завершена" if r[6] == "completed" else "Ожидает"
         })
     return deals
 
@@ -192,21 +195,23 @@ def get_user_deals_list(user_id: int):
 async def cmd_start(message: Message):
     save_user(message.from_user.id, message.from_user.username, message.from_user.first_name)
     
+    # URL твоего фронтенда на Vercel!
+    VERCEL_URL = "https://rbxgarant.vercel.app" # Укажи здесь свою ссылку от Vercel, если она отличается
+    
     kb = ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="🎮 Открыть WebApp", web_app=WebAppInfo(url=WEBAPP_URL))]
+            [KeyboardButton(text="🎮 Открыть WebApp", web_app=WebAppInfo(url=VERCEL_URL))]
         ],
         resize_keyboard=True
     )
     
     await message.answer(
-        f"👋 Добро пожаловать в Roblox-стиль Гарант Бот!\n\n"
-        f"🤖 Я помогу вам провести безопасную сделку в Telegram Stars ⭐️.\n\n"
-        f"Нажмите кнопку ниже, чтобы открыть WebApp и управлять своим балансом и сделками.",
+        f"👋 Добро пожаловать в Roblox Гарант Бот!\n\n"
+        f"🤖 Безопасные сделки в Telegram Stars ⭐️.\n\n"
+        f"Нажмите кнопку ниже, чтобы войти в интерфейс гаранта.",
         reply_markup=kb
     )
 
-# Telegram Stars Payment Handlers
 @dp.pre_checkout_query()
 async def pre_checkout_handler(pre_checkout_query: PreCheckoutQuery):
     await pre_checkout_query.answer(ok=True)
@@ -215,229 +220,64 @@ async def pre_checkout_handler(pre_checkout_query: PreCheckoutQuery):
 async def success_payment_handler(message: Message):
     stars = message.successful_payment.total_amount
     user_id = message.from_user.id
-    
-    # Save/Update user in database if they aren't registered yet
     save_user(user_id, message.from_user.username, message.from_user.first_name)
-    
-    # Credit user's balance
     update_user_balance(user_id, stars)
-    
-    await message.answer(
-        f"🎉 Ваша оплата получена!\n"
-        f"💰 На ваш баланс зачислено: *{stars}* ⭐️.\n"
-        f"Вы можете проверить его, открыв WebApp."
-    )
+    await message.answer(f"🎉 Зачислено: *{stars}* ⭐️.\nПроверьте баланс в WebApp.")
 
-# Callback queries for deal actions
+# Callback-обработчики кнопок сделок в чате
 @dp.callback_query(F.data.startswith("deal_accept:"))
 async def handle_deal_accept(callback_query: CallbackQuery):
     deal_id = callback_query.data.split(":")[1]
     deal = get_deal_record(deal_id)
-    
-    if not deal:
-        await callback_query.answer("Сделка не найдена.", show_alert=True)
+    if not deal or callback_query.from_user.id != deal["seller_id"] or deal["status"] != "created":
+        await callback_query.answer("Ошибка или сделка уже активна.", show_alert=True)
         return
-    
-    if callback_query.from_user.id != deal["seller_id"]:
-        await callback_query.answer("Вы не являетесь продавцом в этой сделке!", show_alert=True)
-        return
-        
-    if deal["status"] != "created":
-        await callback_query.answer(f"Сделка уже находится в статусе: {deal['status']}", show_alert=True)
-        return
-        
     update_deal_status(deal_id, "active")
-    
-    # Edit the seller's message
-    await callback_query.message.edit_text(
-        f"✅ *Вы приняли сделку {deal_id}!*\n\n"
-        f"📦 *Товар:* {deal['description']}\n"
-        f"💰 *Сумма:* {deal['amount']} ⭐️\n\n"
-        f"Пожалуйста, передайте товар покупателю. После получения товара покупатель должен подтвердить выполнение в WebApp.",
-        reply_markup=None,
-        parse_mode="Markdown"
-    )
-    
-    # Notify buyer
+    await callback_query.message.edit_text(f"✅ *Вы приняли сделку {deal_id}!* Передайте товар.", reply_markup=None, parse_mode="Markdown")
     try:
-        await bot.send_message(
-            deal["buyer_id"],
-            f"🎉 Продавец принял вашу сделку *{deal_id}*!\n"
-            f"📦 Ожидайте передачу товара: *{deal['description']}*.\n"
-            f"После получения подтвердите выполнение сделки в WebApp.",
-            parse_mode="Markdown"
-        )
-    except Exception as e:
-        logger.error(f"Failed to notify buyer: {e}")
+        await bot.send_message(deal["buyer_id"], f"🎉 Продавец принял вашу сделку *{deal_id}*! Подтвердите получение в WebApp после передачи.")
+    except Exception: pass
 
 @dp.callback_query(F.data.startswith("deal_decline:"))
 async def handle_deal_decline(callback_query: CallbackQuery):
     deal_id = callback_query.data.split(":")[1]
     deal = get_deal_record(deal_id)
-    
-    if not deal:
-        await callback_query.answer("Сделка не найдена.", show_alert=True)
-        return
-    
-    # Either buyer or seller can decline/cancel a pending deal
-    user_id = callback_query.from_user.id
-    if user_id != deal["seller_id"] and user_id != deal["buyer_id"]:
-        await callback_query.answer("Вы не являетесь участником этой сделки!", show_alert=True)
-        return
-        
-    if deal["status"] != "created":
-        await callback_query.answer(f"Сделка уже находится в статусе: {deal['status']}", show_alert=True)
-        return
-        
+    if not deal or deal["status"] != "created": return
     update_deal_status(deal_id, "declined")
-    
-    # Refund buyer ONLY if they already paid (i.e., if the seller is the one declining)
-    was_paid = (user_id == deal["seller_id"])
-    if was_paid:
+    if callback_query.from_user.id == deal["seller_id"]:
         update_user_balance(deal["buyer_id"], deal["amount"])
-        refund_text = "\n💰 Средства возвращены на баланс покупателя."
-    else:
-        refund_text = ""
-    
-    # Edit the message
-    await callback_query.message.edit_text(
-        f"❌ *Сделка {deal_id} отклонена.*{refund_text}",
-        reply_markup=None,
-        parse_mode="Markdown"
-    )
-    
-    # Notify the other party
-    other_party_id = deal["buyer_id"] if user_id == deal["seller_id"] else deal["seller_id"]
-    try:
-        await bot.send_message(
-            other_party_id,
-            f"❌ Участник отклонил сделку *{deal_id}*."
-            + (f"\n💰 Сумма *{deal['amount']}* ⭐️ возвращена на ваш баланс." if was_paid else ""),
-            parse_mode="Markdown"
-        )
-    except Exception as e:
-        logger.error(f"Failed to notify other party: {e}")
-
-@dp.callback_query(F.data.startswith("deal_pay_accept:"))
-async def handle_deal_pay_accept(callback_query: CallbackQuery):
-    deal_id = callback_query.data.split(":")[1]
-    deal = get_deal_record(deal_id)
-    
-    if not deal:
-        await callback_query.answer("Сделка не найдена.", show_alert=True)
-        return
-        
-    if callback_query.from_user.id != deal["buyer_id"]:
-        await callback_query.answer("Вы не являетесь покупателем в этой сделке!", show_alert=True)
-        return
-        
-    if deal["status"] != "created":
-        await callback_query.answer(f"Сделка уже находится в статусе: {deal['status']}", show_alert=True)
-        return
-        
-    # Check buyer balance
-    buyer = get_user_by_id(deal["buyer_id"])
-    if not buyer or buyer["balance"] < deal["amount"]:
-        await callback_query.answer(
-            "❌ Недостаточно Stars на вашем балансе! Пожалуйста, пополните баланс в WebApp.", 
-            show_alert=True
-        )
-        return
-        
-    # Deduct balance (freeze)
-    update_user_balance(deal["buyer_id"], -deal["amount"])
-    
-    # Update status to active
-    update_deal_status(deal_id, "active")
-    
-    # Edit buyer's message
-    await callback_query.message.edit_text(
-        f"✅ *Вы оплатили и приняли сделку {deal_id}!*\n\n"
-        f"📦 *Товар:* {deal['description']}\n"
-        f"💰 *Списано:* {deal['amount']} ⭐️\n\n"
-        f"Ожидайте передачу товара от продавца. После получения подтвердите выполнение сделки в WebApp.",
-        reply_markup=None,
-        parse_mode="Markdown"
-    )
-    
-    # Notify seller
-    try:
-        await bot.send_message(
-            deal["seller_id"],
-            f"🎉 Покупатель оплатил и принял сделку *{deal_id}*!\n"
-            f"📦 Пожалуйста, передайте ему товар: *{deal['description']}*.\n"
-            f"После передачи покупатель подтвердит получение товара в WebApp.",
-            parse_mode="Markdown"
-        )
-    except Exception as e:
-        logger.error(f"Failed to notify seller: {e}")
-
+    await callback_query.message.edit_text(f"❌ *Сделка {deal_id} отклонена.*", reply_markup=None, parse_mode="Markdown")
 
 
 # ==========================================
 # FASTAPI SECURITY (InitData Verification)
 # ==========================================
 def verify_init_data(init_data: str) -> Optional[dict]:
-    """
-    Verifies the integrity of data received from the Telegram WebApp.
-    Returns the parsed user dictionary if valid, or None.
-    """
     try:
         parsed = parse_qs(init_data)
-        if "hash" not in parsed:
-            return None
+        if "hash" not in parsed: return None
         received_hash = parsed["hash"][0]
-        
-        # Sort key-value pairs alphabetically
         sorted_items = sorted([(k, v[0]) for k, v in parsed.items() if k != "hash"])
         data_check_string = "\n".join([f"{k}={v}" for k, v in sorted_items])
-        
-        # Calculate signature
         secret_key = hmac.new(b"WebAppData", BOT_TOKEN.encode(), hashlib.sha256).digest()
         calculated_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
-        
         if calculated_hash == received_hash:
-            # Parse user data
-            user_data = json.loads(parsed["user"][0])
-            return user_data
-    except Exception as e:
-        logger.error(f"Error verifying Telegram WebApp initData: {e}")
+            return json.loads(parsed["user"][0])
+    except Exception: pass
     return None
 
 
 # ==========================================
-# FASTAPI BACKEND (Endpoints & Setup)
+# FASTAPI BACKEND
 # ==========================================
-
-from aiogram.types import Update
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize DB
     init_db()
-    
-    # Set Webhook on startup
-    try:
-        webhook_url = f"{WEBAPP_URL}/webhook"
-        await bot.set_webhook(url=webhook_url, drop_pending_updates=True)
-        logger.info(f"Webhook successfully set to: {webhook_url}")
-    except Exception as e:
-        logger.error(f"Failed to set webhook on startup: {e}")
-        
     yield
-    
-    # Shutdown
-    try:
-        await bot.delete_webhook()
-        logger.info("Webhook deleted.")
-    except Exception as e:
-        logger.error(f"Failed to delete webhook on shutdown: {e}")
     await bot.session.close()
-    logger.info("Bot session closed.")
 
 app = FastAPI(lifespan=lifespan)
 
-# Enable CORS for local testing
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -446,7 +286,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Webhook Endpoints
 @app.post("/webhook")
 async def telegram_webhook(request: Request):
     try:
@@ -455,292 +294,90 @@ async def telegram_webhook(request: Request):
         await dp.feed_update(bot, update)
     except Exception as e:
         logger.error(f"Error processing webhook update: {e}")
-        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+        return JSONResponse(status_code=500, content={"status": "error"})
     return {"ok": True}
-
-@app.get("/set_webhook")
-async def set_webhook_manually():
-    try:
-        webhook_url = f"{WEBAPP_URL}/webhook"
-        await bot.set_webhook(url=webhook_url, drop_pending_updates=True)
-        return {"status": "success", "message": f"Webhook successfully set to {webhook_url}"}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
 
 # Request Models
 class DepositRequest(BaseModel):
     amount: int
+    user_id: Optional[int] = None
 
 class DealRequest(BaseModel):
-    seller_username: str
+    partner: str
     amount: int
-    description: str
-
-class DealRequest(BaseModel):
-    partner_username: str
-    amount: int
-    description: str
-    creator_role: str  # "buyer" or "seller"
+    item: str
 
 class DealActionRequest(BaseModel):
     deal_id: str
 
-# Endpoints
-@app.get("/", response_class=HTMLResponse)
-async def get_index():
-    if not os.path.exists("index.html"):
-        return "<h3>index.html not found. Please create the frontend file.</h3>"
-    with open("index.html", "r", encoding="utf-8") as f:
-        html_content = f.read()
-    return HTMLResponse(content=html_content)
-
-@app.get("/api/profile")
-async def get_profile(authorization: str = Header(None)):
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-        
-    user_data = verify_init_data(authorization)
-    if not user_data:
-        raise HTTPException(status_code=403, detail="Invalid credentials")
-        
-    user_id = user_data["id"]
-    username = user_data.get("username")
-    first_name = user_data.get("first_name", "Player")
-    
-    # Save user details to DB
-    save_user(user_id, username, first_name)
-    
-    # Get profile details
+@app.get("/api/user/{user_id}")
+async def get_user_profile(user_id: int):
     user = get_user_by_id(user_id)
+    if not user:
+        return {"balance": 0, "deals": []}
     deals = get_user_deals_list(user_id)
-    
-    return {
-        "user": user,
-        "deals": deals
-    }
+    return {"balance": user["balance"], "deals": deals}
 
-@app.post("/api/create_deposit")
-async def create_deposit(req: DepositRequest, authorization: str = Header(None)):
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-        
-    user_data = verify_init_data(authorization)
-    if not user_data:
-        raise HTTPException(status_code=403, detail="Invalid credentials")
-        
-    if req.amount <= 0:
-        raise HTTPException(status_code=400, detail="Invalid amount")
-        
-    # Generate Stars Invoice Link
+@app.post("/api/deposit")
+async def create_deposit(req: DepositRequest):
+    if req.amount <= 0: raise HTTPException(status_code=400, detail="Invalid amount")
     try:
         invoice_link = await bot.create_invoice_link(
             title="Пополнение баланса",
-            description=f"Пополнение баланса в боте-гаранте на {req.amount} Stars",
+            description=f"Пополнение баланса на {req.amount} Stars",
             payload="stars_deposit",
             provider_token="",
             currency="XTR",
             prices=[LabeledPrice(label="Stars", amount=req.amount)]
         )
+        if req.user_id:
+            await bot.send_invoice(
+                chat_id=req.user_id,
+                title="Пополнение баланса",
+                description=f"Счет на {req.amount} Stars",
+                payload="stars_deposit",
+                provider_token="",
+                currency="XTR",
+                prices=[LabeledPrice(label="Stars", amount=req.amount)]
+            )
         return {"invoice_link": invoice_link}
-    except Exception as e:
-        logger.error(f"Failed to create invoice link: {e}")
+    except Exception:
         raise HTTPException(status_code=500, detail="Failed to generate payment link")
 
-@app.post("/api/create_deal")
+@app.post("/api/deals/create")
 async def create_deal(req: DealRequest, authorization: str = Header(None)):
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-        
+    if not authorization: raise HTTPException(status_code=401)
     user_data = verify_init_data(authorization)
-    if not user_data:
-        raise HTTPException(status_code=403, detail="Invalid credentials")
-        
-    creator_id = user_data["id"]
-    creator_username = user_data.get("username", "User")
+    if not user_data: raise HTTPException(status_code=403)
     
-    # Resolve the second participant
-    partner = get_user_by_username(req.partner_username)
+    buyer_id = user_data["id"]
+    buyer_name = user_data.get("username", "Buyer")
+    
+    partner_username = req.partner.replace("@", "").strip()
+    partner = get_user_by_username(partner_username)
     if not partner:
-        return JSONResponse(
-            status_code=400, 
-            content={"error": "Второй участник не найден в боте. Он должен сначала запустить бота!"}
-        )
+        return JSONResponse(status_code=400, content={"detail": "Второй участник должен сначала запустить бота!"})
         
-    if partner["id"] == creator_id:
-        return JSONResponse(status_code=400, content={"error": "Нельзя проводить сделку с самим собой!"})
-        
+    seller_id = partner["id"]
     deal_id = f"DX-{os.urandom(2).hex().upper()}"
     
-    if req.creator_role == "buyer":
-        # Current user is BUYER, partner is SELLER
-        buyer_id = creator_id
-        seller_id = partner["id"]
-        
-        # Check buyer balance
-        buyer = get_user_by_id(buyer_id)
-        if not buyer or buyer["balance"] < req.amount:
-            return JSONResponse(status_code=400, content={"error": "Недостаточно Stars на вашем балансе"})
-            
-        # Deduct balance (freeze)
-        update_user_balance(buyer_id, -req.amount)
-        
-        # Save deal
-        create_deal_record(deal_id, buyer_id, seller_id, req.partner_username, req.amount, req.description)
-        
-        # Send message to seller
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [
-                InlineKeyboardButton(text="Принять ✅", callback_data=f"deal_accept:{deal_id}"),
-                InlineKeyboardButton(text="Отклонить ❌", callback_data=f"deal_decline:{deal_id}")
-            ]
-        ])
-        
-        try:
-            await bot.send_message(
-                seller_id,
-                f"👋 *Новая сделка {deal_id}!*\n\n"
-                f"👤 *Покупатель:* @{creator_username}\n"
-                f"📦 *Товар:* {req.description}\n"
-                f"💰 *Сумма:* {req.amount} ⭐️\n\n"
-                f"Вы согласны выступить продавцом в этой сделке?",
-                reply_markup=keyboard,
-                parse_mode="Markdown"
-            )
-        except Exception as e:
-            logger.error(f"Failed to send message: {e}")
-            update_user_balance(buyer_id, req.amount) # rollback
-            return JSONResponse(status_code=500, content={"error": "Не удалось уведомить продавца"})
-            
-    else:
-        # Current user is SELLER, partner is BUYER
-        buyer_id = partner["id"]
-        seller_id = creator_id
-        
-        # Save deal (starts as 'created', waiting for buyer to pay)
-        create_deal_record(deal_id, buyer_id, seller_id, creator_username, req.amount, req.description)
-        
-        # Send message to buyer to pay and accept
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [
-                InlineKeyboardButton(text="Оплатить и принять 💳", callback_data=f"deal_pay_accept:{deal_id}"),
-                InlineKeyboardButton(text="Отклонить ❌", callback_data=f"deal_decline:{deal_id}")
-            ]
-        ])
-        
-        try:
-            await bot.send_message(
-                buyer_id,
-                f"👋 *Предложение сделки {deal_id}!*\n\n"
-                f"👤 *Продавец:* @{creator_username}\n"
-                f"📦 *Товар:* {req.description}\n"
-                f"💰 *Стоимость:* {req.amount} ⭐️\n\n"
-                f"Вы согласны оплатить и принять эту сделку?",
-                reply_markup=keyboard,
-                parse_mode="Markdown"
-            )
-        except Exception as e:
-            logger.error(f"Failed to send message: {e}")
-            update_deal_status(deal_id, "failed")
-            return JSONResponse(status_code=500, content={"error": "Не удалось уведомить покупателя"})
-            
-    return {"success": True, "deal_id": deal_id}
-
-@app.post("/api/confirm_deal")
-async def confirm_deal(req: DealActionRequest, authorization: str = Header(None)):
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-        
-    user_data = verify_init_data(authorization)
-    if not user_data:
-        raise HTTPException(status_code=403, detail="Invalid credentials")
-        
-    buyer_id = user_data["id"]
-    deal = get_deal_record(req.deal_id)
+    update_user_balance(buyer_id, -req.amount)
+    create_deal_record(deal_id, buyer_id, seller_id, partner_username, req.amount, req.item)
     
-    if not deal:
-        raise HTTPException(status_code=404, detail="Сделка не найдена")
-        
-    if deal["buyer_id"] != buyer_id:
-        raise HTTPException(status_code=403, detail="Доступ запрещен")
-        
-    if deal["status"] != "active":
-        raise HTTPException(status_code=400, detail="Сделка не в активном статусе")
-        
-    # Update status to completed
-    update_deal_status(req.deal_id, "completed")
-    
-    # Transfer stars to seller
-    update_user_balance(deal["seller_id"], deal["amount"])
-    
-    # Notify both parties
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="Принять ✅", callback_data=f"deal_accept:{deal_id}"),
+            InlineKeyboardButton(text="Отклонить ❌", callback_data=f"deal_decline:{deal_id}")
+        ]
+    ])
     try:
-        # Notify seller
         await bot.send_message(
-            deal["seller_id"],
-            f"🎉 *Сделка {req.deal_id} завершена!*\n"
-            f"Покупатель подтвердил получение товара.\n"
-            f"💰 На ваш баланс начислено: *{deal['amount']}* ⭐️.",
-            parse_mode="Markdown"
+            seller_id,
+            f"👋 *Новая сделка {deal_id}!*\n\n👤 *Покупатель:* @{buyer_name}\n📦 *Товар:* {req.item}\n💰 *Сумма:* {req.amount} ⭐️\n\nВы согласны выступить продавцом?",
+            reply_markup=keyboard, parse_mode="Markdown"
         )
-        # Notify buyer
-        await bot.send_message(
-            deal["buyer_id"],
-            f"🎉 *Сделка {req.deal_id} завершена!*\n"
-            f"Вы подтвердили получение товара. Средства переведены продавцу.",
-            parse_mode="Markdown"
-        )
-    except Exception as e:
-        logger.error(f"Notification error: {e}")
-        
+    except Exception: pass
     return {"success": True}
 
-@app.post("/api/dispute_deal")
-async def dispute_deal(req: DealActionRequest, authorization: str = Header(None)):
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-        
-    user_data = verify_init_data(authorization)
-    if not user_data:
-        raise HTTPException(status_code=403, detail="Invalid credentials")
-        
-    user_id = user_data["id"]
-    deal = get_deal_record(req.deal_id)
-    
-    if not deal:
-        raise HTTPException(status_code=404, detail="Сделка не найдена")
-        
-    if deal["buyer_id"] != user_id and deal["seller_id"] != user_id:
-        raise HTTPException(status_code=403, detail="Доступ запрещен")
-        
-    if deal["status"] != "active":
-        raise HTTPException(status_code=400, detail="Сделка не в активном статусе")
-        
-    # Update status to disputed
-    update_deal_status(req.deal_id, "disputed")
-    
-    # Notify both
-    try:
-        msg = (
-            f"⚠️ *Открыт арбитраж по сделке {req.deal_id}!*\n"
-            f"Сделка приостановлена. В ближайшее время администратор подключится для разбора ситуации."
-        )
-        await bot.send_message(deal["buyer_id"], msg, parse_mode="Markdown")
-        await bot.send_message(deal["seller_id"], msg, parse_mode="Markdown")
-    except Exception as e:
-        logger.error(f"Notification error: {e}")
-        
-    return {"success": True}
-
-# ==========================================
-# RUN APPLICATION
-# ==========================================
-if __name__ == "__main__":
-    import uvicorn
-    # Check if Bot Token is provided
-    if BOT_TOKEN == "YOUR_BOT_TOKEN_HERE":
-        print("❌ ERROR: Please set your BOT_TOKEN in server.py!")
-        exit(1)
-    
-    print(f"🚀 Starting FastAPI server on port {PORT}...")
-    print(f"🔗 Make sure to set your WebApp URL to {WEBAPP_URL} in Telegram BotFather!")
-    uvicorn.run("server:app", host="0.0.0.0", port=PORT, reload=True)
+# Превращаем асинхронный FastAPI в понятную для PythonAnywhere переменную WSGI
+wsgi_app = ASGIMiddleware(app)
