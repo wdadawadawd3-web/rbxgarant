@@ -1,0 +1,1058 @@
+/* ==========================================
+   ROBLOX THEME STYLESHEET
+   ========================================== */
+
+/* Variables & Design System */
+:root {
+  --bg-color: #1B1D1F;            /* Roblox Dark Theme Background */
+  --panel-bg: #2B2E31;           /* Roblox Panel Grey */
+  --panel-hover: #393C40;
+  --border-color: #0F1011;       /* Dark outline for 2D cartoonish look */
+  
+  /* Buttons and accents */
+  --roblox-green: #00E266;       /* Bright Roblox Play Button Green */
+  --roblox-green-dark: #00A64A;  /* Shadow color for green button */
+  --roblox-grey: #E3E4E4;        /* Light grey button */
+  --roblox-grey-dark: #A1A2A4;   /* Shadow color for grey button */
+  --roblox-blue: #00A2FF;        /* Roblox Blue Accent */
+  --roblox-blue-dark: #0076BB;
+  
+  /* Text */
+  --text-white: #FFFFFF;
+  --text-grey: #BDC3C7;
+  --text-muted: #8E9498;
+  
+  /* Layout */
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Base Resets & Typography */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Fredoka', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-white);
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Telegram WebApp Container */
+.app-container {
+  width: 100%;
+  max-width: 480px; /* Standard mobile width */
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-color);
+  position: relative;
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+/* Background grid pattern like Roblox Studio */
+.app-container::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+  background-size: 20px 20px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ==========================================
+   HEADER COMPONENT
+   ========================================== */
+.roblox-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background-color: #151718;
+  border-bottom: 3px solid var(--border-color);
+  z-index: 10;
+  position: relative;
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatar-container {
+  position: relative;
+  width: 44px;
+  height: 44px;
+}
+
+.avatar-container img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 2px solid var(--border-color);
+  background-color: #2D3033;
+  object-fit: cover;
+}
+
+.avatar-border {
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  border: 2px solid #FFD700;
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
+  pointer-events: none;
+}
+
+.username-text {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text-white);
+  text-shadow: 1px 1px 0px var(--border-color);
+}
+
+.security-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.security-badge:active {
+  transform: scale(0.9);
+}
+
+.shield-icon {
+  width: 32px;
+  height: 32px;
+  filter: drop-shadow(0 2px 4px rgba(0, 226, 102, 0.3));
+}
+
+
+/* ==========================================
+   SCROLLABLE CONTENT AREA
+   ========================================== */
+.content-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  padding-bottom: calc(90px + var(--safe-area-bottom)); /* Leave space for Bottom Nav */
+  z-index: 1;
+  position: relative;
+  scrollbar-width: none; /* Firefox */
+}
+
+.content-area::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+.app-screen {
+  display: none;
+  flex-direction: column;
+  gap: 20px;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.app-screen.active {
+  display: flex;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+
+/* ==========================================
+   ROBLOX PANEL (GLASS & CARTOON CARD)
+   ========================================== */
+.roblox-panel {
+  background-color: var(--panel-bg);
+  border: 3px solid var(--border-color);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 6px 0 var(--border-color), inset 0 2px 0 rgba(255, 255, 255, 0.05);
+  position: relative;
+}
+
+.screen-header-panel {
+  text-align: center;
+  background: linear-gradient(135deg, #2D3033 0%, #202224 100%);
+}
+
+.panel-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-grey);
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+  text-shadow: 1px 1px 0px var(--border-color);
+}
+
+.panel-title-large {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-white);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-shadow: 2px 2px 0px var(--border-color);
+}
+
+
+/* ==========================================
+   BALANCE & CURRENCY SWITCHER
+   ========================================== */
+.balance-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: linear-gradient(180deg, var(--panel-bg) 0%, #202224 100%);
+}
+
+.currency-tabs {
+  display: flex;
+  background-color: #151718;
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  padding: 4px;
+  width: 100%;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.currency-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  padding: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.currency-tab .tab-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-grey);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.currency-tab.active {
+  background-color: var(--panel-bg);
+  border: 2px solid var(--border-color);
+  box-shadow: 0 3px 0 var(--border-color);
+  transform: translateY(-2px);
+}
+
+.currency-tab.active .tab-content {
+  color: var(--text-white);
+}
+
+.icon-star, .icon-robux {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+.balance-display-container {
+  margin: 10px 0 14px 0;
+  animation: pulse-glow 3s infinite alternate;
+}
+
+.balance-value {
+  font-size: 36px;
+  font-weight: 700;
+  color: #FFD700; /* Gold by default */
+  text-shadow: 3px 3px 0px var(--border-color), 0 0 10px rgba(255, 215, 0, 0.2);
+  letter-spacing: 0.5px;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.balance-value.robux-style {
+  color: #E3E4E4;
+  text-shadow: 3px 3px 0px var(--border-color), 0 0 10px rgba(227, 228, 228, 0.2);
+}
+
+.deposit-badge {
+  background-color: #151718;
+  border: 2px solid var(--border-color);
+  border-radius: 20px;
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--roblox-blue);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 0 var(--border-color);
+}
+
+.deposit-badge:active {
+  transform: translateY(2px);
+  box-shadow: none;
+}
+
+
+/* ==========================================
+   VOLUMETRIC ROBLOX BUTTONS
+   ========================================== */
+.roblox-btn {
+  position: relative;
+  display: inline-block;
+  border: 3px solid var(--border-color);
+  border-radius: 16px;
+  cursor: pointer;
+  text-align: center;
+  font-family: 'Fredoka', sans-serif;
+  font-weight: 700;
+  text-shadow: 2px 2px 0px var(--border-color);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+/* Green (Play style) Button */
+.btn-green {
+  background-color: var(--roblox-green);
+  color: var(--text-white);
+  box-shadow: 0 6px 0 var(--roblox-green-dark), 0 9px 0 var(--border-color);
+}
+
+.btn-green:hover {
+  background-color: #00F076;
+}
+
+.btn-green:active {
+  transform: translateY(6px);
+  box-shadow: 0 0px 0 var(--roblox-green-dark), 0 3px 0 var(--border-color);
+}
+
+/* Grey Button */
+.btn-grey {
+  background-color: var(--roblox-grey);
+  color: var(--border-color);
+  text-shadow: none; /* Grey button uses dark text, no dark text shadow */
+  box-shadow: 0 6px 0 var(--roblox-grey-dark), 0 9px 0 var(--border-color);
+}
+
+.btn-grey:hover {
+  background-color: #F0F1F2;
+}
+
+.btn-grey:active {
+  transform: translateY(6px);
+  box-shadow: 0 0px 0 var(--roblox-grey-dark), 0 3px 0 var(--border-color);
+}
+
+/* Blue Button */
+.btn-blue {
+  background-color: var(--roblox-blue);
+  color: var(--text-white);
+  box-shadow: 0 6px 0 var(--roblox-blue-dark), 0 9px 0 var(--border-color);
+}
+
+.btn-blue:hover {
+  background-color: #26B2FF;
+}
+
+.btn-blue:active {
+  transform: translateY(6px);
+  box-shadow: 0 0px 0 var(--roblox-blue-dark), 0 3px 0 var(--border-color);
+}
+
+/* Button Layout Customizations */
+.btn-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  font-size: 16px;
+}
+
+.btn-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.action-buttons-group {
+  display: flex;
+  gap: 16px;
+  width: 100%;
+}
+
+.btn-action {
+  flex: 1;
+}
+
+.btn-action .btn-inner {
+  padding: 14px 10px;
+}
+
+/* Main huge Play button */
+.main-action-container {
+  margin-top: 10px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.btn-play {
+  width: 100%;
+}
+
+.btn-play .btn-inner {
+  padding: 18px 24px;
+  font-size: 22px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.btn-small .btn-inner {
+  padding: 8px 16px;
+  font-size: 14px;
+}
+
+.briefcase-icon {
+  width: 28px;
+  height: 28px;
+  filter: drop-shadow(1px 1px 0px var(--border-color));
+}
+
+
+/* ==========================================
+   PROMO BANNER
+   ========================================== */
+.promo-banner {
+  background-color: #2D3033;
+  border: 3px solid var(--border-color);
+  border-radius: 16px;
+  padding: 14px 16px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 0 var(--border-color);
+  transition: all 0.15s ease;
+}
+
+.promo-banner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -50%;
+  width: 200%;
+  height: 100%;
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0) 30%,
+    rgba(255, 255, 255, 0.05) 40%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.05) 60%,
+    rgba(255, 255, 255, 0) 70%
+  );
+  transform: rotate(-30deg);
+  animation: shine 6s infinite linear;
+}
+
+.promo-banner:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 var(--border-color);
+}
+
+.banner-content {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.banner-icon {
+  background-color: #151718;
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 0 var(--border-color);
+}
+
+.eye-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.banner-text-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.banner-title {
+  font-weight: 700;
+  font-size: 15px;
+  color: #FFE600;
+  text-shadow: 1px 1px 0px var(--border-color);
+}
+
+.banner-subtitle {
+  font-size: 12px;
+  color: var(--text-grey);
+}
+
+
+/* ==========================================
+   DEALS LIST & EMPTY STATE
+   ========================================== */
+.deals-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.deal-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px;
+  background-color: #232527;
+}
+
+.deal-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.deal-id {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.deal-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.deal-status-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 2px solid var(--border-color);
+  text-transform: uppercase;
+}
+
+.status-active {
+  background-color: var(--roblox-blue);
+  color: white;
+}
+
+.status-completed {
+  background-color: var(--roblox-green);
+  color: white;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  gap: 16px;
+}
+
+.empty-icon {
+  font-size: 48px;
+  filter: drop-shadow(2px 2px 0px var(--border-color));
+}
+
+.empty-text {
+  font-size: 16px;
+  color: var(--text-grey);
+  font-weight: 600;
+}
+
+
+/* ==========================================
+   PROFILE SCREEN STYLES
+   ========================================== */
+.profile-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  background: linear-gradient(180deg, var(--panel-bg) 0%, #202224 100%);
+  padding: 24px 16px;
+}
+
+.profile-avatar-large {
+  width: 96px;
+  height: 96px;
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.profile-avatar-large img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 4px solid var(--border-color);
+  background-color: #25282a;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.profile-username-text {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-white);
+  text-shadow: 2px 2px 0px var(--border-color);
+  margin-bottom: 4px;
+}
+
+.profile-status {
+  font-size: 13px;
+  color: var(--roblox-blue);
+  font-weight: 700;
+  margin-bottom: 20px;
+  background-color: rgba(0, 162, 255, 0.1);
+  padding: 4px 12px;
+  border-radius: 12px;
+  border: 1.5px solid var(--roblox-blue);
+}
+
+.profile-stats {
+  display: flex;
+  width: 100%;
+  border-top: 2px solid var(--border-color);
+  padding-top: 16px;
+  gap: 10px;
+}
+
+.stat-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.stat-val {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-white);
+  text-shadow: 1px 1px 0px var(--border-color);
+}
+
+.stat-lbl {
+  font-size: 11px;
+  color: var(--text-grey);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.settings-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.settings-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-grey);
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 8px;
+}
+
+.settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* Roblox Custom Switch */
+.roblox-switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 26px;
+}
+
+.roblox-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #151718;
+  border: 2px solid var(--border-color);
+  border-radius: 34px;
+  transition: .2s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background-color: var(--text-grey);
+  border-radius: 50%;
+  border: 1.5px solid var(--border-color);
+  transition: .2s;
+}
+
+input:checked + .slider {
+  background-color: var(--roblox-green);
+}
+
+input:checked + .slider:before {
+  transform: translateX(24px);
+  background-color: var(--text-white);
+}
+
+
+/* ==========================================
+   FAQ STYLES
+   ========================================== */
+.faq-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.faq-item {
+  background-color: var(--panel-bg);
+  border: 3px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 0 var(--border-color);
+}
+
+.faq-question {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+  transition: background-color 0.2s ease;
+}
+
+.faq-question:hover {
+  background-color: var(--panel-hover);
+}
+
+.faq-arrow {
+  font-size: 12px;
+  transition: transform 0.2s ease;
+}
+
+.faq-answer {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.2s ease-out;
+  background-color: #222426;
+  border-top: 0px solid var(--border-color);
+}
+
+.faq-answer p {
+  padding: 14px 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-grey);
+  font-weight: 500;
+}
+
+.faq-item.open .faq-arrow {
+  transform: rotate(180deg);
+}
+
+.faq-item.open .faq-answer {
+  max-height: 200px;
+  border-top: 2px solid var(--border-color);
+}
+
+
+/* ==========================================
+   BOTTOM NAVIGATION BAR
+   ========================================== */
+.bottom-navbar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: calc(72px + var(--safe-area-bottom));
+  background-color: #151718;
+  border-top: 3px solid var(--border-color);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding-bottom: var(--safe-area-bottom);
+  z-index: 10;
+}
+
+.nav-item {
+  flex: 1;
+  height: 100%;
+  background: transparent;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: var(--text-grey);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.nav-icon {
+  width: 24px;
+  height: 24px;
+  transition: transform 0.2s ease;
+}
+
+.nav-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.nav-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.nav-item.active {
+  color: var(--roblox-green);
+}
+
+.nav-item.active .nav-icon {
+  transform: scale(1.15) translateY(-2px);
+  filter: drop-shadow(0 2px 4px rgba(0, 226, 102, 0.2));
+}
+
+
+/* ==========================================
+   MODAL WINDOWS
+   ========================================== */
+.modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(15, 16, 17, 0.85);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: flex-end; /* Mobile-friendly slide from bottom */
+  z-index: 100;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.modal-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-card {
+  width: 100%;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 24px 20px;
+}
+
+.modal-overlay.active .modal-card {
+  transform: translateY(0);
+}
+
+.modal-close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: #151718;
+  border: 2px solid var(--border-color);
+  color: var(--text-white);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 0 var(--border-color);
+  transition: all 0.1s ease;
+}
+
+.modal-close-btn:active {
+  transform: translateY(2px);
+  box-shadow: none;
+}
+
+/* Modal Content Styles */
+.modal-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  text-transform: uppercase;
+  text-shadow: 1.5px 1.5px 0px var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.modal-body {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-grey);
+  margin-bottom: 20px;
+}
+
+.modal-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.modal-label {
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--text-grey);
+}
+
+.modal-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.modal-input {
+  width: 100%;
+  background-color: #151718;
+  border: 3px solid var(--border-color);
+  border-radius: 12px;
+  padding: 12px 16px;
+  color: var(--text-white);
+  font-family: 'Fredoka', sans-serif;
+  font-weight: 600;
+  font-size: 16px;
+  outline: none;
+}
+
+.modal-input:focus {
+  border-color: var(--roblox-blue);
+}
+
+.modal-input-badge {
+  position: absolute;
+  right: 12px;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.modal-buttons .roblox-btn {
+  flex: 1;
+}
+
+
+/* ==========================================
+   ANIMATIONS & EFFECTS
+   ========================================== */
+@keyframes shine {
+  0% {
+    left: -150%;
+  }
+  50% {
+    left: 150%;
+  }
+  100% {
+    left: 150%;
+  }
+}
+
+@keyframes pulse-glow {
+  0% {
+    filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.1));
+  }
+  100% {
+    filter: drop-shadow(0 0 12px rgba(255, 215, 0, 0.35));
+  }
+}
+
+/* Sound / Haptic Click Feel (Visual helper) */
+.flash-effect {
+  position: relative;
+}
+.flash-effect::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+  pointer-events: none;
+}
+.flash-effect:active::after {
+  opacity: 1;
+}
